@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统计学视角看交易</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #14161a;
+    --bg3: #1c1f25;
+    --bg4: #23272f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8b909c;
+    --text3: #5a5f6b;
+    --accent: #4f9eff;
+    --accent2: #2563eb;
+    --green: #34d399;
+    --green-bg: rgba(52,211,153,0.1);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.1);
+    --amber: #fbbf24;
+    --amber-bg: rgba(251,191,36,0.08);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 60px 28px 100px; }
+
+  /* ── Header ── */
+  .header { margin-bottom: 64px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .title {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  .subtitle {
+    font-size: 17px;
+    color: var(--text2);
+    line-height: 1.65;
+    max-width: 560px;
+  }
+
+  /* ── Section ── */
+  .section { margin-bottom: 72px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 20px; }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+  .sec-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+  .sec-body {
+    font-size: 15px;
+    color: var(--text2);
+    line-height: 1.75;
+    margin-left: 32px;
+    margin-bottom: 24px;
+  }
+  .sec-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Callout ── */
+  .callout {
+    margin: 0 0 20px 32px;
+    background: var(--bg3);
+    border: 0.5px solid var(--border2);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.7;
+  }
+  .callout strong { color: var(--text); font-weight: 500; }
+
+  /* ── Card grid ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    margin: 0 0 20px 32px;
+  }
+  .card {
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  /* ── Main EV Calculator ── */
+  .ev-calc {
+    margin: 0 0 20px 32px;
+    background: var(--bg2);
+    border: 0.5px solid var(--border2);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .ev-calc-header {
+    background: var(--bg3);
+    border-bottom: 0.5px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ev-calc-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .ev-calc-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .ev-body { padding: 24px; }
+
+  /* input fields */
+  .input-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 560px) { .input-group { grid-template-columns: 1fr; } }
+
+  .field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .field-inner {
+    display: flex;
+    align-items: center;
+    background: var(--bg4);
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .field-inner:focus-within { border-color: var(--accent); }
+  .field-prefix, .field-suffix {
+    padding: 0 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text3);
+    background: var(--bg3);
+    height: 40px;
+    display: flex; align-items: center;
+    border-right: 0.5px solid var(--border);
+    flex-shrink: 0;
+  }
+  .field-suffix { border-right: none; border-left: 0.5px solid var(--border); }
+  .field-inner input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 0 12px;
+    height: 40px;
+    width: 0;
+    min-width: 0;
+  }
+  .field-inner input::placeholder { color: var(--text3); }
+
+  /* also allow slider for winrate */
+  .wr-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .wr-row input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--bg4);
+    border-radius: 2px;
+    outline: none;
+  }
+  .wr-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  .wr-val {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 38px;
+    text-align: right;
+  }
+
+  /* Results */
+  .ev-result {
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 4px;
+  }
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 600px) { .result-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .result-card {
+    background: var(--bg4);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .result-card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .result-card-val {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .result-card-val.pos { color: var(--green); }
+  .result-card-val.neg { color: var(--red); }
+  .result-card-val.info { color: var(--accent); }
+
+  .ev-bar-area { margin-top: 16px; }
+  .ev-bar-label {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+  .ev-bar-bg {
+    height: 6px;
+    background: var(--bg4);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .ev-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .ev-verdict {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+    padding: 10px 14px;
+    background: var(--bg4);
+    border-radius: 8px;
+    border-left: 2px solid transparent;
+    transition: border-color 0.3s;
+  }
+  .ev-verdict.pos { border-color: var(--green); }
+  .ev-verdict.neg { border-color: var(--red); }
+  .ev-verdict strong { font-weight: 500; }
+
+  /* ── Streak simulator ── */
+  .streak-wrap {
+    margin: 0 0 20px 32px;
+    background: var(--bg2);
+    border: 0.5px solid var(--border2);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .streak-header {
+    background: var(--bg3);
+    border-bottom: 0.5px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .streak-header-left { display: flex; align-items: center; gap: 8px; }
+  .btn-sim {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    background: rgba(79,158,255,0.1);
+    border: 0.5px solid rgba(79,158,255,0.25);
+    border-radius: 6px;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .btn-sim:hover { background: rgba(79,158,255,0.18); }
+
+  .streak-body { padding: 20px 24px; }
+  .streak-config {
+    display: flex; align-items: center; gap: 24px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .streak-config-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text2);
+  }
+  .streak-config-item input[type=range] {
+    width: 100px;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    background: var(--bg4);
+    border-radius: 2px;
+    outline: none;
+  }
+  .streak-config-item input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  .streak-config-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    min-width: 30px;
+  }
+
+  .streak-grid {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-bottom: 16px;
+  }
+  .sdot {
+    width: 26px; height: 26px;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    transition: background 0.05s;
+  }
+  .sdot-w { background: var(--green-bg); color: var(--green); }
+  .sdot-l { background: var(--red-bg); color: var(--red); }
+
+  .streak-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+  @media (max-width: 560px) { .streak-stats { grid-template-columns: repeat(2, 1fr); } }
+  .sstat {
+    background: var(--bg4);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .sstat-label { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .sstat-val { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--text); }
+  .sstat-val.green { color: var(--green); }
+  .sstat-val.red { color: var(--red); }
+
+  /* ── Rule table ── */
+  .rule-table {
+    margin: 0 0 20px 32px;
+    width: calc(100% - 32px);
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .rule-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    padding: 8px 12px;
+    border-bottom: 0.5px solid var(--border2);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .rule-table td {
+    padding: 12px 12px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text2);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  .rule-table tr:last-child td { border-bottom: none; }
+  .rule-table tr:hover td { background: var(--bg3); }
+  .tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; font-family: var(--mono); }
+  .tag-w { background: var(--red-bg); color: var(--red); }
+  .tag-r { background: var(--green-bg); color: var(--green); }
+
+  /* ── Track items ── */
+  .track-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+    margin: 0 0 20px 32px;
+  }
+  .track-card {
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex; gap: 12px;
+  }
+  .track-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    padding-top: 1px;
+    flex-shrink: 0;
+  }
+  .track-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .track-desc { font-size: 12px; color: var(--text2); line-height: 1.55; }
+
+  /* ── Summary ── */
+  .summary-box {
+    margin: 0 0 0 32px;
+    background: linear-gradient(135deg, rgba(37,99,235,0.12) 0%, rgba(79,158,255,0.06) 100%);
+    border: 0.5px solid rgba(79,158,255,0.2);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .summary-box p {
+    font-size: 16px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .summary-box strong { color: var(--accent); font-weight: 500; }
+
+  /* ── Divider ── */
+  .divider { height: 0.5px; background: var(--border); margin: 0 0 72px 32px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="eyebrow">交易心理 & 统计学</div>
+    <h1 class="title">用统计学的眼光<br>看待你的交易</h1>
+    <p class="subtitle">大多数交易者把单笔结果当成评判标准，这是最大的认知错误。统计学告诉你：交易是一个概率游戏，结果只在足够多次执行后才有意义。</p>
+  </div>
+
+  <!-- Section 1 -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">交易的本质是什么</h2>
+    </div>
+    <p class="sec-body">
+      你不是在"预测市场"，你是在<strong>执行一个期望值为正的系统</strong>，让时间帮你把优势兑现出来。单笔交易的结果几乎是随机的——就算你分析完全正确，也可能亏损。这不是问题，这是统计分布的正常表现。
+    </p>
+    <div class="callout">
+      <strong>核心比喻：你是赌场，不是赌客。</strong> 赌场不知道某一局的输赢，但它设计了房子赢面（house edge），然后反复开局。你的策略边际就是你的 house edge，时间是你的盟友。
+    </div>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">1 笔交易</div>
+        <div class="card-desc">结果几乎随机，分析再好也可能亏。不要用单笔结果判断策略。</div>
+      </div>
+      <div class="card">
+        <div class="card-title">100 笔交易</div>
+        <div class="card-desc">期望值开始显现，策略的真实边际开始浮出水面。</div>
+      </div>
+      <div class="card">
+        <div class="card-title">1000 笔交易</div>
+        <div class="card-desc">策略优势被充分展示，规律稳定，统计结论可信。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 2 - EV Calculator -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">期望值：最重要的一个数字</h2>
+    </div>
+    <p class="sec-body">
+      期望值（Expected Value）是你每笔交易<strong>平均能赚或亏多少</strong>。这才是评估策略的核心指标——不是胜率，不是上次赚了多少。一个胜率只有 40% 的策略，如果盈亏比够高，期望值仍然是正的。
+    </p>
+    <div class="callout">
+      <strong>公式：</strong>期望值 = (胜率 × 平均盈利) − (败率 × 平均亏损)
+    </div>
+
+    <div class="ev-calc">
+      <div class="ev-calc-header">
+        <div class="ev-calc-dot"></div>
+        <span class="ev-calc-label">期望值计算器</span>
+      </div>
+      <div class="ev-body">
+        <!-- Inputs -->
+        <div class="input-group">
+          <div class="field">
+            <label>平均盈利（每笔）</label>
+            <div class="field-inner">
+              <span class="field-prefix">$</span>
+              <input type="number" id="inp-profit" min="1" max="99999" step="1" value="150" placeholder="150" oninput="calcEV()">
+            </div>
+          </div>
+          <div class="field">
+            <label>平均亏损（每笔）</label>
+            <div class="field-inner">
+              <span class="field-prefix">$</span>
+              <input type="number" id="inp-loss" min="1" max="99999" step="1" value="100" placeholder="100" oninput="calcEV()">
+            </div>
+          </div>
+          <div class="field">
+            <label>模拟笔数</label>
+            <div class="field-inner">
+              <input type="number" id="inp-count" min="1" max="10000" step="1" value="100" placeholder="100" oninput="calcEV()">
+              <span class="field-suffix">笔</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Win rate slider -->
+        <div class="field" style="margin-bottom: 20px;">
+          <label>胜率</label>
+          <div class="wr-row">
+            <input type="range" id="wr-slider" min="10" max="90" step="1" value="55" oninput="syncWR(this.value)">
+            <div class="field-inner" style="width: 90px; flex-shrink:0;">
+              <input type="number" id="wr-num" min="10" max="90" step="1" value="55" oninput="syncWRnum(this.value)" style="text-align:right;">
+              <span class="field-suffix">%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="ev-result">
+          <div class="result-grid">
+            <div class="result-card">
+              <div class="result-card-label">每笔期望值</div>
+              <div class="result-card-val" id="r-ev">+$42</div>
+            </div>
+            <div class="result-card">
+              <div class="result-card-label">盈亏比</div>
+              <div class="result-card-val info" id="r-rr">1.50R</div>
+            </div>
+            <div class="result-card">
+              <div class="result-card-label">N笔后预期</div>
+              <div class="result-card-val" id="r-total">+$4250</div>
+            </div>
+            <div class="result-card">
+              <div class="result-card-label">盈亏平衡胜率</div>
+              <div class="result-card-val info" id="r-be">40.0%</div>
+            </div>
+          </div>
+
+          <div class="ev-bar-area">
+            <div class="ev-bar-label">
+              <span>胜 <span id="bar-w-pct">55%</span></span>
+              <span>亏 <span id="bar-l-pct">45%</span></span>
+            </div>
+            <div class="ev-bar-bg">
+              <div class="ev-bar-fill" id="ev-bar-fill" style="background:var(--green); width: 55%;"></div>
+            </div>
+          </div>
+
+          <div class="ev-verdict pos" id="ev-verdict">
+            <strong>正期望系统</strong> — 这个策略在执行足够多次后，统计上将带来盈利。盈亏平衡胜率为 40.0%，你的 55% 胜率高于该阈值，具备正边际。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>关键认知：</strong>胜率 45% 的策略，只要盈亏比够高，期望值仍然是正的。很多新手执着于"提高胜率"，忽视了这一点。提高盈亏比往往比提高胜率更容易实现。
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 3 - Streak Simulator -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">连亏连赢不说明任何问题</h2>
+    </div>
+    <p class="sec-body">
+      这是统计学里最反直觉的部分。一个胜率 55% 的策略，<strong>连续亏损 5 次是正常的，连续 8 次也会发生</strong>。这不代表策略坏了，这是正态分布的必然结果。在连亏之后修改策略，你不是在修正问题，你是在对随机噪音做出反应。
+    </p>
+
+    <div class="streak-wrap">
+      <div class="streak-header">
+        <div class="streak-header-left">
+          <div class="ev-calc-dot"></div>
+          <span class="ev-calc-label">连败模拟器</span>
+        </div>
+        <button class="btn-sim" onclick="runStreak()">重新模拟 ↻</button>
+      </div>
+      <div class="streak-body">
+        <div class="streak-config">
+          <div class="streak-config-item">
+            <span>胜率</span>
+            <input type="range" id="s-wr" min="30" max="75" value="55" oninput="updateStreakConfig()">
+            <span class="streak-config-val" id="s-wr-v">55%</span>
+          </div>
+          <div class="streak-config-item">
+            <span>模拟笔数</span>
+            <input type="range" id="s-n" min="20" max="100" step="5" value="50" oninput="updateStreakConfig()">
+            <span class="streak-config-val" id="s-n-v">50笔</span>
+          </div>
+        </div>
+        <div class="streak-grid" id="s-grid"></div>
+        <div class="streak-stats">
+          <div class="sstat">
+            <div class="sstat-label">本轮胜率</div>
+            <div class="sstat-val" id="s-wr-actual">—</div>
+          </div>
+          <div class="sstat">
+            <div class="sstat-label">最长连亏</div>
+            <div class="sstat-val red" id="s-max-l">—</div>
+          </div>
+          <div class="sstat">
+            <div class="sstat-label">最长连赢</div>
+            <div class="sstat-val green" id="s-max-w">—</div>
+          </div>
+          <div class="sstat">
+            <div class="sstat-label">预期连亏长度</div>
+            <div class="sstat-val" id="s-exp-l">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>每次点击"重新模拟"，连亏长度都会不同</strong>——可能是 3，可能是 7，甚至 9。这些结果都来自同一个系统。如果你在连亏 5 次后就放弃或修改策略，你不是在修正问题，你是在对随机噪音做出反应。
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 4 - Rule table -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">情绪做法 vs 统计做法</h2>
+    </div>
+    <p class="sec-body">
+      面对同一个情境，情绪反应和统计视角会带来截然不同的决定。这张对比表帮你识别自己当前处于哪种模式。
+    </p>
+    <table class="rule-table">
+      <tr>
+        <th>情境</th>
+        <th><span class="tag tag-w">情绪做法</span></th>
+        <th><span class="tag tag-r">统计做法</span></th>
+      </tr>
+      <tr>
+        <td>连亏 4 天</td>
+        <td>认为策略失效，停止交易或大改规则</td>
+        <td>检查是否偏离执行，样本量不足，继续按计划执行</td>
+      </tr>
+      <tr>
+        <td>连赢 4 天</td>
+        <td>认为突破了，加大仓位，过度自信</td>
+        <td>认识到这是正常方差，维持既定仓位和规则</td>
+      </tr>
+      <tr>
+        <td>止损后大涨</td>
+        <td>后悔、怀疑自己的止损设置，下次不设止损</td>
+        <td>止损执行正确，个别案例不代表规律</td>
+      </tr>
+      <tr>
+        <td>某月大亏</td>
+        <td>全面否定，情绪崩溃，怀疑整个路线</td>
+        <td>看是否属于正常回撤范围，复盘执行层面偏差</td>
+      </tr>
+      <tr>
+        <td>评估策略好坏</td>
+        <td>看最近 5～10 笔交易</td>
+        <td>需要至少 100 笔以上才能下有效结论</td>
+      </tr>
+      <tr>
+        <td>达到每日亏损上限</td>
+        <td>停下来却一直盯着市场，情绪波动</td>
+        <td>彻底离开屏幕，接受这是系统运行的一部分</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 5 - Track -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">你真正需要追踪的数字</h2>
+    </div>
+    <p class="sec-body">
+      不要追踪"今天赚了多少"，而要追踪你策略的<strong>统计健康度</strong>。这六个数字是你每周 / 每月应该审视的核心指标。
+    </p>
+    <div class="track-grid">
+      <div class="track-card">
+        <span class="track-num">01</span>
+        <div>
+          <div class="track-title">期望值（EV）</div>
+          <div class="track-desc">每笔交易平均净盈亏。策略有没有正优势的核心指标。</div>
+        </div>
+      </div>
+      <div class="track-card">
+        <span class="track-num">02</span>
+        <div>
+          <div class="track-title">盈亏比（R:R）</div>
+          <div class="track-desc">平均盈利 ÷ 平均亏损。越高，允许的最低胜率越低。</div>
+        </div>
+      </div>
+      <div class="track-card">
+        <span class="track-num">03</span>
+        <div>
+          <div class="track-title">最大连续亏损</div>
+          <div class="track-desc">设定心理预期和资金管理规则用的，不是恐慌的信号。</div>
+        </div>
+      </div>
+      <div class="track-card">
+        <span class="track-num">04</span>
+        <div>
+          <div class="track-title">执行一致性</div>
+          <div class="track-desc">有多少笔按计划执行？偏离次数越少，数据越可信。</div>
+        </div>
+      </div>
+      <div class="track-card">
+        <span class="track-num">05</span>
+        <div>
+          <div class="track-title">最大回撤</div>
+          <div class="track-desc">从峰值到谷底的最大跌幅，评估风险控制是否合理。</div>
+        </div>
+      </div>
+      <div class="track-card">
+        <span class="track-num">06</span>
+        <div>
+          <div class="track-title">样本量</div>
+          <div class="track-desc">不足 100 笔的统计几乎没有意义，所有结论须基于足够数量。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <p>统计学视角的核心，是把<strong>"我今天赚了多少"</strong>这个问题，替换成<strong>"我的系统是否在按期望运行"</strong>。前者让你陷入情绪，后者让你成为专业交易者。时间是你唯一需要的东西——给系统足够多的执行次数，让期望值自然兑现。</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function calcEV() {
+  const profit = parseFloat(document.getElementById('inp-profit').value) || 0;
+  const loss   = parseFloat(document.getElementById('inp-loss').value)   || 0;
+  const count  = parseFloat(document.getElementById('inp-count').value)  || 100;
+  const wr     = parseFloat(document.getElementById('wr-slider').value)  || 55;
+
+  const lr = 100 - wr;
+  const ev = (wr / 100) * profit - (lr / 100) * loss;
+  const rr = loss > 0 ? (profit / loss).toFixed(2) : '—';
+  const be = loss > 0 ? (loss / (profit + loss) * 100).toFixed(1) : '—';
+  const total = ev * count;
+
+  const evEl    = document.getElementById('r-ev');
+  const totalEl = document.getElementById('r-total');
+  const beEl    = document.getElementById('r-be');
+  const verdict = document.getElementById('ev-verdict');
+  const fill    = document.getElementById('ev-bar-fill');
+
+  evEl.textContent    = (ev >= 0 ? '+' : '') + '$' + Math.round(ev);
+  evEl.className      = 'result-card-val ' + (ev >= 0 ? 'pos' : 'neg');
+  totalEl.textContent = (total >= 0 ? '+' : '') + '$' + Math.round(total).toLocaleString();
+  totalEl.className   = 'result-card-val ' + (total >= 0 ? 'pos' : 'neg');
+  document.getElementById('r-rr').textContent = rr + 'R';
+  beEl.textContent    = be + '%';
+
+  document.getElementById('bar-w-pct').textContent = wr + '%';
+  document.getElementById('bar-l-pct').textContent = lr + '%';
+  fill.style.width = wr + '%';
+  fill.style.background = ev >= 0 ? 'var(--green)' : 'var(--red)';
+
+  if (ev >= 0) {
+    verdict.className = 'ev-verdict pos';
+    verdict.innerHTML = `<strong>正期望系统</strong> — 这个策略在执行足够多次后，统计上将带来盈利。盈亏平衡胜率为 ${be}%，你的 ${wr}% 胜率高于该阈值，具备正边际。每执行 ${Math.round(count)} 笔，预期累计盈利约 <strong>$${Math.round(total).toLocaleString()}</strong>。`;
+  } else {
+    verdict.className = 'ev-verdict neg';
+    verdict.innerHTML = `<strong>负期望系统</strong> — 这个参数组合长期执行将带来亏损。盈亏平衡胜率为 ${be}%，你的 ${wr}% 胜率低于该阈值。需要提高胜率、提高盈亏比，或两者同时改善。`;
+  }
+}
+
+function syncWR(val) {
+  document.getElementById('wr-num').value = val;
+  calcEV();
+}
+function syncWRnum(val) {
+  const v = Math.min(90, Math.max(10, parseInt(val) || 55));
+  document.getElementById('wr-slider').value = v;
+  calcEV();
+}
+
+function updateStreakConfig() {
+  const wr = document.getElementById('s-wr').value;
+  const n  = document.getElementById('s-n').value;
+  document.getElementById('s-wr-v').textContent = wr + '%';
+  document.getElementById('s-n-v').textContent  = n + '笔';
+  runStreak();
+}
+
+function runStreak() {
+  const wr = parseFloat(document.getElementById('s-wr').value) / 100;
+  const n  = parseInt(document.getElementById('s-n').value);
+  const results = Array.from({length: n}, () => Math.random() < wr ? 'W' : 'L');
+
+  const grid = document.getElementById('s-grid');
+  grid.innerHTML = '';
+  results.forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'sdot ' + (r === 'W' ? 'sdot-w' : 'sdot-l');
+    d.textContent = r;
+    grid.appendChild(d);
+  });
+
+  const wins = results.filter(r => r === 'W').length;
+  let maxL = 0, curL = 0, maxW = 0, curW = 0;
+  results.forEach(r => {
+    if (r === 'L') { curL++; maxL = Math.max(maxL, curL); curW = 0; }
+    else           { curW++; maxW = Math.max(maxW, curW); curL = 0; }
+  });
+
+  const expL = Math.round(1 / wr);
+
+  document.getElementById('s-wr-actual').textContent = Math.round(wins / n * 100) + '%';
+  document.getElementById('s-max-l').textContent     = maxL + ' 笔';
+  document.getElementById('s-max-w').textContent     = maxW + ' 笔';
+  document.getElementById('s-exp-l').textContent     = '约 ' + expL + ' 笔';
+}
+
+calcEV();
+runStreak();
+</script>
+</body>
+</html>
